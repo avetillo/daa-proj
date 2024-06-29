@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Routes Mapping</title>
+    <link rel="stylesheet" href="styles/styles1.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+
+    <style>
+        #map {
+            width: 60%;
+            height: 80vh;
+            margin-left: 20px;
+            margin-top: 50px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <img class="logo" src="graphics/fire-truck-header.png" alt="Logo">
+        <h1>EMERGENCY ROUTES</h1>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="#">About</a></li>
+            <li><a href="#">Emergency Routes</a></li>
+        </ul>
+    </div>
+
+    <div id="map"></div>
+
+ 
+    <div class="search-container">
+        <input type="text" id="search-input" placeholder="Search destination...">
+        <button id="search-btn">Search</button>
+    </div>
+    
+    <div class="button-container">
+        <button class="btn" id="best-route-btn">Best Route</button>
+        <button class="btn" id="clear-btn">Clear Map</button>
+        <button class="btn" id="save-btn">Save Path</button>
+        <button class="btn" id="view-saved-btn">View Saved Paths</button>
+    </div>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-geosearch/dist/leaflet-geosearch.css" />
+    <script src="https://unpkg.com/leaflet-geosearch/dist/leaflet-geosearch.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.8.0/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+    <div id="map"></div>
+    <div class="info-container">
+        <div class="info-box">
+            <strong>Distance:</strong> <span id="distance">N/A</span>
+        </div>
+        <div class="info-box">
+            <strong>Time:</strong> <span id="time">N/A</span>
+        </div>
+        <div class="info-box">
+            <strong>Most Optimal Path:</strong> <span id="optimal-path">N/A</span>
+        </div>
+    </div>
+
+    <script>
+
+        
+        var map = L.map('map').setView([14.6760, 121.0437], 12);
+        var mapLink = "<a href='http://openstreetmap.org'>OpenStreetMap</a>";
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'Leaflet &copy; ' + mapLink + ', contribution',
+            maxZoom: 18
+        }).addTo(map);
+
+
+        var fireStations = [
+            {
+                name: 'Eastwood Fire Station',
+                address: '182 E. Rodriguez Jr. Ave., Bagumbayan, Quezon City, Philippines',
+                coordinates: [14.6125, 121.0776]
+            },
+            {
+                name: 'Pinagkaisahan Fire Station',
+                address: 'J2HG+Q36, Sct. Reyes St., Quezon City, Philippines',
+                coordinates: [14.6340, 121.0524]
+            },
+            {
+                name: 'Novaliches Fire Station',
+                address: 'Quirino Highway corner Talipapa St., Barangay Novaliches Proper, Quezon City, Philippines',
+                coordinates: [14.7015, 121.0408]
+            },
+            {
+                name: 'Baesa Fire Station',
+                address: 'Congressional Ave. corner Quirino Highway, Quezon City, Philippines',
+                coordinates: [14.6706, 121.0411]
+            },
+            {
+                name: 'La Loma Fire Station',
+                address: 'La Loma Road corner Araneta Avenue, Quezon City, Philippines',
+                coordinates: [14.6283, 121.0085]
+            },
+            {
+                name: 'San Antonio Fire Station',
+                address: 'Santolan Road, Quezon City, Philippines',
+                coordinates: [14.6117, 121.0732]
+            },
+            {
+                name: 'Project 6 Fire Station',
+                address: 'Project 6, Quezon City, Philippines',
+                coordinates: [14.6532, 121.0492]
+            },
+            {
+                name: 'Bahay-Toro Fire Station',
+                address: 'Araneta Avenue, Quezon City, Philippines',
+                coordinates: [14.6350, 121.0260]
+            },
+            {
+                name: 'Agham Fire Station',
+                address: 'Agham Road, Quezon City, Philippines',
+                coordinates: [14.6502, 121.0444]
+            },
+            {
+                name: 'Ramon Magsaysay Fire Station',
+                address: 'Ramon Magsaysay Blvd., Quezon City, Philippines',
+                coordinates: [14.6123, 121.0177]
+            },
+            {
+                name: 'Masambong Fire Station',
+                address: 'Masambong Street, Quezon City, Philippines',
+                coordinates: [14.6366, 121.0066]
+            }
+        ];
+
+        var endMarkers = []; // Array to store multiple destination markers
+        var routingControl = null;
+        var savedRoutes = []; // Array to store saved routes
+        var currentRouteIndex = 0; // Index of currently viewed saved route
+        var movingMarker = null; // Marker for animation
+        var animationTimer = null; // Timer for animation
+        var fireStationMarkers = []; // Array to store fire station markers
+
+       
+    // A* algorithm implementation
+    function astar(grid, startNode, endNode) {
+        let openSet = [];
+        let closedSet = [];
+        openSet.push(startNode);
+
+        while (openSet.length > 0) {
+            let lowestIndex = 0;
+            for (let i = 0; i < openSet.length; i++) {
+                if (openSet[i].f < openSet[lowestIndex].f) {
+                    lowestIndex = i;
+                }
+            }
+            let currentNode = openSet[lowestIndex];
+
+            if (currentNode === endNode) {
+                let path = [];
+                let temp = currentNode;
+                while (temp !== null) {
+                    path.push(temp);
+                    temp = temp.previous;
+                }
+                return path.reverse();
+            }
+
+            openSet = openSet.filter(node => node !== currentNode);
+            closedSet.push(currentNode);
+
+            let neighbors = currentNode.getNeighbors(grid);
+            for (let neighbor of neighbors) {
+                if (!closedSet.includes(neighbor) && !neighbor.wall) {
+                    let tempG = currentNode.g + 1;
+
+                    let newPath = false;
+                    if (openSet.includes(neighbor)) {
+                        if (tempG < neighbor.g) {
+                            neighbor.g = tempG;
+                            newPath = true;
+                        }
+                    } else {
+                        neighbor.g = tempG;
+                        newPath = true;
+                        openSet.push(neighbor);
+                    }
+
+                    if (newPath) {
+                        neighbor.h = heuristic(neighbor, endNode);
+                        neighbor.f = neighbor.g + neighbor.h;
+                        neighbor.previous = currentNode;
+                    }
+                }
+            }
+        }
+
+        return []; // No path found
+    }
+
+    // Node class for A* algorithm
+    function Node(x, y) {
+        this.x = x;
+        this.y = y;
+        this.f = 0;
+        this.g = 0;
+        this.h = 0;
+        this.neighbors = [];
+        this.previous = null; // Initialize previous to null
+        this.wall = false;
+
+        this.addNeighbors = function (grid) {
+            let i = this.x;
+            let j = this.y;
+            if (i < grid.length - 1) this.neighbors.push(grid[i + 1][j]);
+            if (i > 0) this.neighbors.push(grid[i - 1][j]);
+            if (j < grid[i].length - 1) this.neighbors.push(grid[i][j + 1]);
+            if (j > 0) this.neighbors.push(grid[i][j - 1]);
+        };
+
+        this.getNeighbors = function (grid) {
+            let neighbors = [];
+            let i = this.x;
+            let j = this.y;
+            if (i < grid.length - 1) neighbors.push(grid[i + 1][j]);
+            if (i > 0) neighbors.push(grid[i - 1][j]);
+            if (j < grid[i].length - 1) neighbors.push(grid[i][j + 1]);
+            if (j > 0) neighbors.push(grid[i][j - 1]);
+            return neighbors.filter(neighbor => !neighbor.wall);
+        };
+    }
+
+    // Calculate heuristic (Manhattan distance)
+    function heuristic(nodeA, nodeB) {
+        return Math.abs(nodeA.x - nodeB.x) + Math.abs(nodeA.y - nodeB.y);
+    }
+
+    // Event listener for Best Route button
+    document.getElementById('best-route-btn').addEventListener('click', function () {
+        // Check if animation is ongoing
+        if (animationTimer) {
+            alert('Animation is ongoing. Please wait until it finishes.');
+            return;
+        }
+
+        // Check if there is exactly one destination marker
+        if (endMarkers.length === 1) {
+            // Find the nearest fire station to the end marker
+            var nearestFireStation = findNearestFireStation(endMarkers[0].getLatLng());
+
+            // Define waypoints for routing control: nearest fire station -> destination
+            var waypoints = [
+                L.latLng(nearestFireStation.coordinates),
+                endMarkers[0].getLatLng()
+            ];
+
+            // Convert waypoints to grid nodes for A* algorithm
+            var startNode = new Node(Math.round(waypoints[0].lat), Math.round(waypoints[0].lng));
+            var endNode = new Node(Math.round(waypoints[1].lat), Math.round(waypoints[1].lng));
+
+            // Find path using A* algorithm
+            var pathNodes = astar(grid, startNode, endNode);
+
+            // Convert path nodes to LatLng for routing control
+            var route = pathNodes.map(node => L.latLng(node.x, node.y));
+
+            // Setup routing control with the calculated waypoints
+            setupRoutingControl(route);
+
+            // Disable map interaction to prevent user interaction during animation
+            disableMapInteraction();
+        } else {
+            // Alert user if there isn't exactly one destination marker selected
+            alert('Please select exactly one destination point.');
+        }
+    });
+
+
+        function setupRoutingControl(waypoints) {
+            if (routingControl) {
+                map.removeControl(routingControl);
+            }
+
+            routingControl = L.Routing.control({
+    waypoints: waypoints,
+    routeWhileDragging: true,
+    createMarker: function (i, wp, nWps) {
+        if (i === 0) {
+            return L.marker(wp.latLng, {
+                draggable: false,
+                icon: createCustomMarkerIcon('graphics/fire-station.png')
+            }).bindPopup("Start");
+        } else if (i === nWps - 1) {
+            return L.marker(wp.latLng, {
+                draggable: false,
+                icon: createCustomMarkerIcon('graphics/fire.gif')
+            }).bindPopup("End");
+        } else {
+            return null; // Return null for intermediate markers
+        }
+    }
+}).addTo(map);
+
+            routingControl.on('routesfound', function (e) {
+                var route = e.routes[0].coordinates;
+                animateMarkerAlongRoute(route);
+                route.forEach(function (coord, index) {
+                    if (index > 0 && index < route.length - 1) {
+                        var prevBearing = calculateBearing(route[index - 1], coord);
+                        var nextBearing = calculateBearing(coord, route[index + 1]);
+                        var angle = calculateAngle(prevBearing, nextBearing);
+                        if (angle > 45 && angle < 135) {
+                            L.marker(coord, { icon: createTurnMarkerIcon('right') }).addTo(map);
+                        } else if (angle > 225 && angle < 315) {
+                            L.marker(coord, { icon: createTurnMarkerIcon('left') }).addTo(map);
+                        }
+                    }
+                
+                });
+            });
+        }
+
+        function createTurnMarkerIcon(direction) {
+            var iconUrl = direction === 'left' ? 'graphics/pinlr.png' : 'graphics/pinlr.png';
+            return L.icon({
+                iconUrl: iconUrl,
+                iconSize: [30, 30],
+                iconAnchor: [10, 10]
+            });
+        }
+
+        document.getElementById('search-btn').addEventListener('click', function () {
+    var searchText = document.getElementById('search-input').value;
+
+    // Use Leaflet's geocoding service to find coordinates of the search location
+    if (searchText) {
+        var geocodeService = L.esri.Geocoding.geocodeService();
+        geocodeService.geocode().text(searchText).run(function (error, results) {
+            if (!error) {
+                var latlng = results.results[0].latlng;
+
+                // Clear existing end markers
+                resetMap();
+
+                // Create new destination marker at the search location
+                var marker = L.marker(latlng, {
+                    draggable: false,
+                    icon: createCustomMarkerIcon('graphics/fire.gif')
+                }).addTo(map);
+                endMarkers.push(marker);
+
+                // Set map view to the search location
+                map.setView(latlng, 14);
+            } else {
+                alert('Location not found. Please try again.');
+            }
+        });
+    } else {
+        alert('Please enter a location to search.');
+    }
+});
+
+        document.getElementById('best-route-btn').addEventListener('click', function () {
+    // Check if animation is ongoing
+    if (animationTimer) {
+        alert('Animation is ongoing. Please wait until it finishes.');
+        return;
+    }
+
+    // Check if there is exactly one destination marker
+    if (endMarkers.length === 1) {
+        // Find the nearest fire station to the end marker
+        var nearestFireStation = findNearestFireStation(endMarkers[0].getLatLng());
+
+        // Define waypoints for routing control: nearest fire station -> destination
+        var waypoints = [
+            L.latLng(nearestFireStation.coordinates),
+            endMarkers[0].getLatLng()
+        ];
+
+        // Setup routing control with the calculated waypoints
+        setupRoutingControl(waypoints);
+        
+        // Disable map interaction to prevent user interaction during animation
+        disableMapInteraction();
+    } else {
+        // Alert user if there isn't exactly one destination marker selected
+        alert('Please select exactly one destination point.');
+    }
+});
+
+
+        function disableMapInteraction() {
+            map.dragging.disable(); // Disable map dragging
+            map.doubleClickZoom.disable(); // Disable double click zoom
+            map.scrollWheelZoom.disable(); // Disable scroll wheel zoom
+            map.boxZoom.disable(); // Disable box zoom
+            map.keyboard.disable(); // Disable keyboard navigation
+        }
+
+        function enableMapInteraction() {
+            map.dragging.enable(); // Enable map dragging
+            map.doubleClickZoom.enable(); // Enable double click zoom
+            map.scrollWheelZoom.enable(); // Enable scroll wheel zoom
+            map.boxZoom.enable(); // Enable box zoom
+            map.keyboard.enable(); // Enable keyboard navigation
+        }
+
+        function calculateBearing(from, to) {
+            var lat1 = from.lat * Math.PI / 180;
+            var lon1 = from.lng * Math.PI / 180;
+            var lat2 = to.lat * Math.PI / 180;
+            var lon2 = to.lng * Math.PI / 180;
+
+            var y = Math.sin(lon2 - lon1) * Math.cos(lat2);
+            var x = Math.cos(lat1) * Math.sin(lat2) -
+                    Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
+            var bearing = Math.atan2(y, x) * 180 / Math.PI;
+
+            return (bearing + 360) % 360;
+        }
+
+        function calculateAngle(prevBearing, nextBearing) {
+            var angle = Math.abs(prevBearing - nextBearing);
+            if (angle > 180) {
+                angle = 360 - angle;
+            }
+            return angle;
+        }
+
+        
+
+        document.getElementById('save-btn').addEventListener('click', function () {
+            if (routingControl) {
+                savedRoutes.push(routingControl.getWaypoints().map(wp => wp.latLng));
+                alert('Route saved successfully!');
+            } else {
+                alert('No route to save.');
+            }
+        });
+
+        document.getElementById('view-saved-btn').addEventListener('click', function () {
+            if (savedRoutes.length > 0) {
+                if (currentRouteIndex >= savedRoutes.length) {
+                    currentRouteIndex = 0;
+                }
+                var waypoints = savedRoutes[currentRouteIndex];
+                setupRoutingControl(waypoints);
+                currentRouteIndex++;
+            } else {
+                alert('No saved routes available.');
+            }
+        });
+
+        map.on('click', function (e) {
+            if (animationTimer) {
+                alert('Animation is ongoing. Please wait until it finishes.');
+                return;
+            }
+
+            var marker = L.marker(e.latlng, {
+                draggable: false,
+                icon: createCustomMarkerIcon('graphics/fire.gif')
+            }).addTo(map);
+            endMarkers.push(marker);
+        });
+
+        document.getElementById('clear-btn').addEventListener('click', function () {
+            resetMap();
+        });
+
+        function resetMap() {
+            map.setView([14.6760, 121.0437], 12); // Reset map view to Quezon City
+
+            endMarkers.forEach(function (marker) {
+                map.removeLayer(marker); // Remove all end markers
+            });
+            endMarkers = []; // Reset end markers array
+
+            if (routingControl) {
+                map.removeControl(routingControl); // Remove routing control if exists
+                routingControl = null; // Reset routing control variable
+            }
+
+            if (movingMarker) {
+                map.removeLayer(movingMarker); // Remove moving marker if exists
+                movingMarker = null; // Reset moving marker
+            }
+
+            // Remove all layers except for the tile layer and fire station markers
+            map.eachLayer(function (layer) {
+                if (!(layer instanceof L.TileLayer)) {
+                    map.removeLayer(layer);
+                }
+            });
+
+            // Re-add the fire station markers
+            fireStationMarkers.forEach(function (marker) {
+                marker.addTo(map);
+            });
+
+            enableMapInteraction(); // Enable map interaction after reset
+        }
+
+        // Adding fire stations to the map with custom icons
+        fireStations.forEach(function (station) {
+            var marker = L.marker(station.coordinates, {
+                icon: createCustomMarkerIcon('graphics/fire-station.png') // Use custom icon for fire stations
+            }).addTo(map);
+            marker.bindPopup("<b>" + station.name + "</b><br>" + station.address);
+            fireStationMarkers.push(marker); // Store the marker in the fireStationMarkers array
+        });
+
+
+        function animateMarkerAlongRoute(route) {
+    var index = 0;
+    movingMarker = L.marker(route[0], { icon: createCustomMarkerIcon('graphics/truck.png') }).addTo(map); // Add moving marker at the start of the route
+
+    function moveMarker() {
+        if (index < route.length) {
+            var from = route[index];
+            var to = route[index + 1];
+
+            movingMarker.setLatLng(from); // Move marker to the current point
+            map.setView(from); // Adjust map view to follow marker
+
+            // Check if this is the last point
+            if (index === route.length - 1) {
+                // Show popup indicating destination reached
+                var popupContent = "You reached your destination!";
+                movingMarker.bindPopup(popupContent).openPopup();
+
+                // Optionally close the popup after a few seconds
+                setTimeout(function () {
+                    movingMarker.closePopup();
+                }, 3000); // Close popup after 3 seconds
+
+                // Optionally, add a callback function or event handler here for further actions
+            }
+
+            index++; // Move to the next point
+
+            // Continue moving to the next point
+            if (index < route.length) {
+                setTimeout(moveMarker, 100); // Move the marker after a delay of 100ms
+            }
+        }
+    }
+
+    moveMarker(); // Start the animation process
+}
+
+
+
+
+
+
+        function createCustomMarkerIcon(iconUrl) {
+            return L.icon({
+                iconUrl: iconUrl,
+                iconSize: [50, 40],
+                iconAnchor: [20, 20],
+                popupAnchor: [0, 20]
+            });
+        }
+
+     
+                
+
+   
+
+   
+
+
+        function findNearestFireStation(destination) {
+            var nearestStation = null;
+            var minDistance = Infinity;
+            fireStations.forEach(function (station) {
+                var distance = map.distance(destination, L.latLng(station.coordinates));
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestStation = station;
+                }
+            });
+            return nearestStation;
+        }
+
+    
+      
+
+        // Initialize grid for A* algorithm
+        var cols = 50;
+        var rows = 50;
+        var grid = new Array(cols);
+        for (var i = 0; i < cols; i++) {
+            grid[i] = new Array(rows);
+        }
+        for (var i = 0; i < cols; i++) {
+            for (var j = 0; j < rows; j++) {
+                grid[i][j] = new Node(i, j);
+            }
+        }
+        for (var i = 0; i < cols; i++) {
+            for (var j = 0; j < rows; j++) {
+                grid[i][j].addNeighbors(grid);
+            }
+        }
+    </script>
+</body>
+
+</html>

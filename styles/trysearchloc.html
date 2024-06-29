@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Routes Mapping</title>
+    <link rel="stylesheet" href="styles/styles1.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-geosearch/dist/leaflet-geosearch.css" />
+
+    <script src="https://unpkg.com/leaflet@1.8.0/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <script src="https://unpkg.com/leaflet-geosearch/dist/leaflet-geosearch.min.js"></script>
+</head>
+<body>
+    <div id="map" style="width: 600px; height: 400px;"></div>
+    <div class="search-container">
+        <input type="text" id="search-input" placeholder="Search destination...">
+        <button id="search-btn">Search</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var map = L.map('map').setView([14.6760, 121.0437], 12); // Initial coordinates and zoom level
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+            }).addTo(map);
+
+            var geocoder = L.Control.geocoder({
+                defaultMarkGeocode: false,
+            })
+            .on('markgeocode', function (e) {
+                var bbox = e.geocode.bbox;
+                var poly = L.polygon([
+                    bbox.getSouthEast(),
+                    bbox.getNorthEast(),
+                    bbox.getNorthWest(),
+                    bbox.getSouthWest()
+                ]).addTo(map);
+                map.fitBounds(poly.getBounds());
+            })
+            .addTo(map);
+
+            document.getElementById('search-btn').addEventListener('click', function () {
+                var searchText = document.getElementById('search-input').value;
+                if (searchText) {
+                    var geocodeService = L.Control.Geocoder.nominatim();
+                    geocodeService.geocode().text(searchText).run(function (error, results) {
+                        if (!error && results && results.length > 0) {
+                            var latlng = results[0].center;
+                            map.setView(latlng, 14); // Set map view to the search location
+                            L.marker(latlng).addTo(map); // Add a marker at the found location (optional)
+                        } else {
+                            alert('Location not found. Please try again.');
+                        }
+                    });
+                } else {
+                    alert('Please enter a location to search.');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
