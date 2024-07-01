@@ -6,13 +6,16 @@
         }
 
         .info-container {
-            width: 30%;
-            float: right;
-            margin-top: 20px;
+            display: block;
             padding: 10px;
             box-sizing: border-box;
+            width: 55vh;
+            float: right;
+            position: absolute;
+            top: 32%;
+            right: 30px;
         }
-
+        
         .info-box {
             background-color: white;
             color: #0C2C39;
@@ -28,11 +31,20 @@
             padding-left: 10px;
         }
 
+        .save-container {
+            margin-top: 10px;
+            text-align: right;
+            padding-left: 10px;
+            top: 70vh;
+            right: 30px;
+            position: absolute;
+        }
+
         .btn {
             background-color: white;
             color: #0C2C39;
             border: none;
-            padding: 10px 20px;
+            padding: 2vh 3vh;
             font-size: 16px;
             margin: 10px;
             cursor: pointer;
@@ -102,33 +114,36 @@
         }
 
         .search-container {
-            position: fixed;
-            top: 80px; /* Adjust this value as needed */
-            right: 20px; /* Adjust this value as needed */
-            background-color: #fff;
-            padding: 10px;
-            border-radius: 5px;
+            position: absolute;
+            top: 20%;
+            right: 40px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            background-color: white;
+            color: #0C2C39;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 30px;
+            width: 50vh;
             z-index: 1000;
         }
         
-        .search-container input[type="text"] {
-       
-            width: 200px;
-            padding: 5px;
-            font-size: 14px;
-            border: 1px solid #ccc;
-            border-radius: 3px;
-        }
-        
         .search-container button {
-        
-            padding: 5px 10px;
+            padding: 10px 10px;
             font-size: 14px;
             cursor: pointer;
-            background-color: #0C2C39;;
+            background-color: #0C2C39;
             color: white;
             border: none;
+            border-radius: 3px;
+            width: 12vh;
+            
+        }
+        
+        .search-container input[type="text"] {
+            width: 33vh;
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #ccc;
             border-radius: 3px;
         }
         
@@ -137,4 +152,6 @@
             font-weight: bold;
             color: #0C2C39;
         }
+
+        
         

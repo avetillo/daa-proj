@@ -1,5 +1,5 @@
 document.getElementById('start').addEventListener('click', function() {
-    window.location.href = 'leaflet.html';
+    window.location.href = 'emergency routes.html';
 });
 
 document.getElementById('home').addEventListener('click', function() {
